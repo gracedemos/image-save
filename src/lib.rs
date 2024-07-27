@@ -31,6 +31,11 @@ pub fn process_transaction(program_id: &Pubkey, accounts: &[AccountInfo], data: 
     }
 
     let account_len = data.len();
+
+    if account_len == 0 {
+        return close_account(signer, pda_account);
+    }
+
     let rent = Rent::get()
         .unwrap();
     let rent_lamports = rent.minimum_balance(account_len);
@@ -62,6 +67,19 @@ pub fn process_transaction(program_id: &Pubkey, accounts: &[AccountInfo], data: 
 
     pda_account.serialize_data(&image)
         .unwrap();
+
+    Ok(())
+}
+
+fn close_account(signer: &AccountInfo, pda: &AccountInfo) -> Result<(), ProgramError> {
+    **signer.try_borrow_mut_lamports()? += pda.lamports();
+    **pda.try_borrow_mut_lamports()? = 0;
+
+    pda.data.try_borrow_mut()
+        .unwrap()
+        .fill(0);
+
+    msg!("PDA Closed: {}", pda.key);
 
     Ok(())
 }
